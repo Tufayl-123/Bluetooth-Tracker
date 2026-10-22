@@ -1,0 +1,10 @@
+{
+  "name": "Remix AeroBLE - Bluetooth Radar \u0026 Device Tracker",
+  "description": "Interactive Bluetooth BLE radar, real-time device tracker, GATT explorer, and step-by-step Python Bluetooth engineering guide with Bleak scripts.",
+  "requestFramePermissions": [
+    "bluetooth"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

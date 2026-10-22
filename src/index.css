@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@layer utilities {
+  /* Custom scrollbar for cyber/radar cockpit aesthetics */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #040812;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #064e3b;
+    border-radius: 3px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #10b981;
+  }
+}

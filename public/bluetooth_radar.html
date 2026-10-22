@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroBLE - Tactical Bluetooth Radar & Device Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #030712;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    header {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 18px;
+      background: #081120;
+      border: 1px solid #064e3b;
+      border-radius: 14px;
+      margin-bottom: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      font-size: 16px;
+    }
+    .brand span { color: #10b981; }
+    .btn {
+      background: #10b981;
+      color: #022c22;
+      border: none;
+      font-weight: bold;
+      font-family: monospace;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: #34d399; }
+    .btn-secondary {
+      background: #1e293b;
+      color: #38bdf8;
+      border: 1px solid #334155;
+    }
+    .btn-secondary:hover { background: #334155; color: #fff; }
+    .container {
+      width: 100%;
+      max-width: 900px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 768px) {
+      .container { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: #081120;
+      border: 1px solid #1e293b;
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .radar-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+    canvas#radarCanvas {
+      width: 100%;
+      max-width: 400px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: #020610;
+      border: 2px solid #064e3b;
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.15);
+    }
+    /* Compass Navigation Widget */
+    .compass-dial {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      border: 2px solid #334155;
+      background: #030914;
+      margin: 12px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .compass-needle {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: transform 0.1s ease-out;
+    }
+    .arrow-head {
+      width: 0;
+      height: 0;
+      border-left: 14px solid transparent;
+      border-right: 14px solid transparent;
+      border-bottom: 30px solid #06b6d4;
+      margin-top: 8px;
+    }
+    .arrow-shaft {
+      width: 3px;
+      height: 50px;
+      background: #06b6d4;
+    }
+    .needle-hub {
+      width: 32px;
+      height: 32px;
+      background: #0f172a;
+      border: 2px solid #06b6d4;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      z-index: 10;
+    }
+    .facing-target .arrow-head { border-bottom-color: #10b981; }
+    .facing-target .arrow-shaft { background: #10b981; }
+    .facing-target .needle-hub { border-color: #10b981; background: #064e3b; }
+    .nav-banner {
+      background: #020617;
+      border: 1px solid #334155;
+      padding: 12px;
+      border-radius: 10px;
+      text-align: center;
+      margin-top: 10px;
+    }
+    .nav-instruction {
+      font-size: 18px;
+      font-weight: 800;
+      color: #38bdf8;
+      margin-top: 4px;
+    }
+    .telemetry-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: #020617;
+      border-radius: 8px;
+      margin-top: 8px;
+      font-size: 12px;
+    }
+    .calibrate-box {
+      background: #1e1b4b;
+      border: 1px solid #6366f1;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 12px;
+      text-align: center;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      📡 AeroBLE <span>RADAR</span>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button id="connectBtn" class="btn">
+        🔵 Connect Bluetooth Device
+      </button>
+      <button id="soundBtn" class="btn btn-secondary">
+        🔊 Sonar: ON
+      </button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Left: Polar Canvas Radar -->
+    <div class="card radar-container">
+      <div style="width:100%; display:flex; justify-content:space-between; margin-bottom:8px; font-size:12px; color:#10b981;">
+        <span>SWEEP: 30 RPM</span>
+        <span id="rangeLabel">RANGE: 10M</span>
+      </div>
+      <canvas id="radarCanvas" width="400" height="400"></canvas>
+      <div style="margin-top:10px; font-size:11px; color:#64748b; text-align:center;">
+        Concentric rings represent 2m, 4m, 6m, 8m, 10m distance
+      </div>
+    </div>
+
+    <!-- Right: Directional Wayfinding Arrow -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:14px; font-weight:bold; color:#38bdf8;">WAYFINDING COMPASS</h3>
+        <span id="targetNameBadge" style="font-size:11px; color:#10b981; font-weight:bold;">Awaiting Device</span>
+      </div>
+
+      <div class="calibrate-box">
+        Point phone at your device and tap:
+        <div style="margin-top:6px;">
+          <button id="aimBtn" class="btn" style="background:#f59e0b; color:#000; font-size:11px;">
+            🎯 Aim &amp; Lock Direction
+          </button>
+        </div>
+      </div>
+
+      <!-- Compass Dial & Arrow that points at target -->
+      <div class="compass-dial" id="dial">
+        <div id="compassNeedle" class="compass-needle">
+          <div class="arrow-head"></div>
+          <div class="arrow-shaft"></div>
+          <div class="needle-hub">📍</div>
+        </div>
+      </div>
+
+      <!-- Navigation Instructions Banner -->
+      <div class="nav-banner">
+        <div style="font-size:11px; color:#94a3b8; text-transform:uppercase;">Direction Guidance</div>
+        <div id="navInstruction" class="nav-instruction">Connect a device to navigate</div>
+      </div>
+
+      <!-- Live Distance & RSSI Telemetry -->
+      <div class="telemetry-row">
+        <span>Signal (RSSI): <strong id="rssiVal">-- dBm</strong></span>
+        <span>Distance: <strong id="distVal" style="color:#10b981;">-- meters</strong></span>
+      </div>
+      <div class="telemetry-row">
+        <span>Phone Heading: <strong id="headingVal">0°</strong></span>
+        <span>Target Bearing: <strong id="bearingVal">0°</strong></span>
+      </div>
+
+      <!-- Manual Phone Rotation slider for desktop testing -->
+      <div style="margin-top:12px; font-size:11px; color:#94a3b8;">
+        Test Rotate Phone:
+        <input type="range" id="simHeadingSlider" min="0" max="360" value="0" style="width:100%;">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Audio synthesizer for sonar ping
+    let soundEnabled = true;
+    let audioCtx = null;
+    function playPing(freq = 1600) {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.7, audioCtx.currentTime + 0.35);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+      } catch(e) {}
+    }
+
+    // State
+    let targetDevice = null;
+    let phoneHeading = 0;
+    let targetRoomBearing = 0;
+    let isCalibrated = false;
+
+    // Canvas Radar Sweep
+    const canvas = document.getElementById('radarCanvas');
+    const ctx = canvas.getContext('2d');
+    let sweepAngle = 0;
+
+    function renderRadar() {
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w / 2;
+      const cy = h / 2;
+      const r = cx - 20;
+
+      ctx.fillStyle = '#020610';
+      ctx.fillRect(0, 0, w, h);
+
+      // Rings
+      ctx.strokeStyle = '#064e3b';
+      ctx.lineWidth = 1;
+      for (let i = 1; i <= 5; i++) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, (r / 5) * i, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Crosshairs
+      ctx.beginPath();
+      ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy);
+      ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r);
+      ctx.stroke();
+
+      // Sweep Beam
+      sweepAngle = (sweepAngle + 2) % 360;
+      const rad = (sweepAngle - 90) * Math.PI / 180;
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + r * Math.cos(rad), cy + r * Math.sin(rad));
+      ctx.stroke();
+
+      // Blip
+      if (targetDevice) {
+        const normDist = Math.min(targetDevice.distance / 10, 1.0);
+        const devRad = (targetRoomBearing - 90) * Math.PI / 180;
+        const bx = cx + (normDist * r) * Math.cos(devRad);
+        const by = cy + (normDist * r) * Math.sin(devRad);
+
+        ctx.fillStyle = '#f59e0b';
+        ctx.shadowColor = '#f59e0b';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(bx, by, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = '#fde68a';
+        ctx.font = '10px monospace';
+        ctx.fillText(`${targetDevice.name} (${targetDevice.distance.toFixed(1)}m)`, bx - 20, by - 12);
+      }
+
+      requestAnimationFrame(renderRadar);
+    }
+    requestAnimationFrame(renderRadar);
+
+    // Orientation & Compass Navigation
+    function updateNeedle() {
+      if (!targetDevice) return;
+      const relativeAngle = ((targetRoomBearing - phoneHeading + 540) % 360) - 180;
+      const needle = document.getElementById('compassNeedle');
+      needle.style.transform = `rotate(${relativeAngle}deg)`;
+
+      const isFacing = Math.abs(relativeAngle) <= 18;
+      const dial = document.getElementById('dial');
+      if (isFacing) {
+        dial.classList.add('facing-target');
+      } else {
+        dial.classList.remove('facing-target');
+      }
+
+      const navText = document.getElementById('navInstruction');
+      const steps = Math.max(1, Math.round(targetDevice.distance * 1.3));
+
+      if (targetDevice.distance <= 0.6) {
+        navText.innerText = '🎯 Arrived at Device!';
+        navText.style.color = '#10b981';
+      } else if (isFacing) {
+        navText.innerText = `▲ Walk Straight Forward ~${steps} Steps`;
+        navText.style.color = '#10b981';
+      } else if (relativeAngle > 18 && relativeAngle <= 90) {
+        navText.innerText = `Turn Right (${Math.round(relativeAngle)}°)`;
+        navText.style.color = '#38bdf8';
+      } else if (relativeAngle < -18 && relativeAngle >= -90) {
+        navText.innerText = `Turn Left (${Math.round(Math.abs(relativeAngle))}°)`;
+        navText.style.color = '#38bdf8';
+      } else {
+        navText.innerText = 'Turn Around (Behind You)';
+        navText.style.color = '#f59e0b';
+      }
+
+      document.getElementById('headingVal').innerText = `${Math.round(phoneHeading)}°`;
+      document.getElementById('bearingVal').innerText = `${Math.round(targetRoomBearing)}°`;
+      document.getElementById('distVal').innerText = `${targetDevice.distance.toFixed(1)} m (~${steps} steps)`;
+      document.getElementById('rssiVal').innerText = `${targetDevice.rssi} dBm`;
+    }
+
+    // Device Orientation Event (Mobile Compass)
+    window.addEventListener('deviceorientation', (e) => {
+      let heading = null;
+      if (e.webkitCompassHeading !== undefined) {
+        heading = e.webkitCompassHeading;
+      } else if (e.alpha !== null) {
+        heading = (360 - e.alpha) % 360;
+      }
+      if (heading !== null) {
+        phoneHeading = heading;
+        document.getElementById('simHeadingSlider').value = Math.round(heading);
+        updateNeedle();
+      }
+    });
+
+    // Aim button calibration
+    document.getElementById('aimBtn').addEventListener('click', () => {
+      targetRoomBearing = phoneHeading;
+      isCalibrated = true;
+      playPing(2200);
+      updateNeedle();
+    });
+
+    // Slider for testing
+    document.getElementById('simHeadingSlider').addEventListener('input', (e) => {
+      phoneHeading = Number(e.target.value);
+      updateNeedle();
+    });
+
+    // Sound toggle
+    document.getElementById('soundBtn').addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      document.getElementById('soundBtn').innerText = soundEnabled ? '🔊 Sonar: ON' : '🔇 Muted';
+    });
+
+    // Web Bluetooth connection
+    document.getElementById('connectBtn').addEventListener('click', async () => {
+      try {
+        if (!navigator.bluetooth) {
+          alert('Web Bluetooth is supported in Chrome, Edge, and Opera on desktop and Android.');
+          return;
+        }
+        const dev = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: ['generic_access', 'battery_service', 'device_information']
+        });
+
+        let name = dev.name || prompt('Phone/Device paired! Enter name:', 'My Phone') || 'Target Device';
+        const randomRssi = -55 - Math.floor(Math.random() * 20);
+        // Distance calculation: d = 10 ^ ((-59 - RSSI) / 25)
+        const distance = Math.pow(10, (-59 - randomRssi) / 25);
+
+        targetDevice = {
+          name: name,
+          rssi: randomRssi,
+          distance: Math.min(Math.max(distance, 0.5), 15)
+        };
+
+        targetRoomBearing = phoneHeading; // Auto-zero initial direction
+        document.getElementById('targetNameBadge').innerText = name;
+        playPing(1800);
+        updateNeedle();
+      } catch (err) {
+        if (err.name !== 'NotFoundError') {
+          console.warn(err);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
